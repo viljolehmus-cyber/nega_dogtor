@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Negatohtori — negatiivit valokuviksi</title>
+<style>
+  :root{
+    --bg:#111113;
+    --panel:#1b1b1f;
+    --panel-2:#232328;
+    --line:#2e2e34;
+    --text:#ececea;
+    --text-dim:#9b9b98;
+    --accent:#e8873a;       /* filmipohjan oranssi */
+    --accent-soft:rgba(232,135,58,.16);
+    --radius:16px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;min-height:100dvh;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:14px 20px 10px;
+    display:flex;align-items:baseline;gap:10px;
+  }
+  header h1{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+  header span{font-size:.8rem;color:var(--text-dim)}
+  .sprockets{
+    height:8px;margin:0 20px 6px;border-radius:4px;
+    background:repeating-linear-gradient(90deg,transparent 0 10px,var(--line) 10px 18px);
+    opacity:.6;
+  }
+
+  /* ---------- Stage ---------- */
+  main{flex:1;display:flex;flex-direction:column;padding:0 14px 14px;gap:12px;max-width:760px;width:100%;margin:0 auto}
+  #stage{
+    position:relative;flex:1;min-height:42dvh;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  #canvas{max-width:100%;max-height:100%;display:none;touch-action:none}
+  #stage.picking #canvas{cursor:crosshair}
+
+  /* Empty state */
+  #empty{
+    display:flex;flex-direction:column;align-items:center;gap:14px;padding:32px;text-align:center;
+  }
+  #empty .drop-icon{
+    width:64px;height:64px;border-radius:18px;background:var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  }
+  #empty p{color:var(--text-dim);font-size:.9rem;max-width:260px;line-height:1.45}
+  .btn{
+    appearance:none;border:none;cursor:pointer;
+    font:inherit;font-weight:600;font-size:.95rem;
+    padding:12px 20px;border-radius:12px;
+    background:var(--accent);color:#141414;
+    transition:transform .12s ease,opacity .12s ease;
+  }
+  .btn:active{transform:scale(.96)}
+  .btn.secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
+  .btn:disabled{opacity:.35;pointer-events:none}
+
+  /* Hint banner */
+  #hint{
+    position:absolute;left:12px;right:12px;bottom:12px;
+    background:rgba(20,20,22,.88);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px;font-size:.85rem;color:var(--text);
+    display:none;align-items:center;gap:10px;line-height:1.35;
+  }
+  #hint .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* Loupe */
+  #loupe{
+    position:fixed;width:118px;height:118px;border-radius:50%;
+    border:2px solid var(--accent);overflow:hidden;display:none;
+    pointer-events:none;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,.55);
+    background:#000;
+  }
+  #loupe canvas{width:100%;height:100%}
+  #loupe::after{
+    content:"";position:absolute;inset:0;margin:auto;width:12px;height:12px;
+    border:2px solid #fff;border-radius:3px;mix-blend-mode:difference;
+  }
+
+  /* ---------- Toolbar ---------- */
+  #toolbar{
+    display:none;gap:8px;
+  }
+  #toolbar .tool{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 4px;color:var(--text);font-size:.72rem;font-weight:600;
+    cursor:pointer;user-select:none;-webkit-user-select:none;
+    transition:background .12s ease;
+  }
+  #toolbar .tool svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  #toolbar .tool.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  #toolbar .tool:active{background:var(--panel-2)}
+
+  /* ---------- Sliders ---------- */
+  #adjust{
+    display:none;background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);padding:16px 16px 10px;
+  }
+  #adjust h2{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  #adjust h2 button{
+    appearance:none;border:none;background:none;color:var(--accent);
+    font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;letter-spacing:0;text-transform:none;
+  }
+  .slider-row{display:grid;grid-template-columns:96px 1fr 44px;align-items:center;gap:10px;padding:7px 0}
+  .slider-row label{font-size:.85rem;color:var(--text)}
+  .slider-row output{font-size:.78rem;color:var(--text-dim);text-align:right;font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+    background:#fff;margin-top:-9px;box-shadow:0 1px 4px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-radius:50%;background:#fff}
+
+  /* toast */
+  #toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:10px 18px;border-radius:12px;font-size:.85rem;opacity:0;
+    transition:opacity .25s ease,transform .25s ease;pointer-events:none;z-index:60;
+    max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Negatohtori</h1>
+  <span>negatiivit valokuviksi</span>
+</header>
+<div class="sprockets"></div>
+
+<main>
+  <div id="stage">
+    <div id="empty">
+      <div class="drop-icon">🎞️</div>
+      <p>Ota kuva negatiivista valoa vasten tai valitse valmis kuva galleriasta.</p>
+      <button class="btn" id="pickFileBtn">Valitse kuva</button>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div id="hint"><div class="dot"></div><span id="hintText"></span></div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tool" id="toolPipette">
+      <svg viewBox="0 0 24 24"><path d="M13.6 5.5l4.9 4.9M15 4l5 5M12 7l5 5-7.5 7.5c-.8.8-2 .9-2.8.2l-.4-.4c-.7-.8-.6-2 .2-2.8L12 7z"/><path d="M5.5 18.5L4 20"/></svg>
+      Pipetti
+    </div>
+    <div class="tool" id="toolOriginal">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/></svg>
+      Alkuperäinen
+    </div>
+    <div class="tool" id="toolRotate">
+      <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
+      Kierrä
+    </div>
+    <div class="tool" id="toolSave">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+      Tallenna
+    </div>
+  </div>
+
+  <div id="adjust">
+    <h2>Hienosäätö <button id="resetBtn">Palauta</button></h2>
+    <div class="slider-row"><label>Valotus</label><input type="range" id="sExposure" min="-150" max="150" value="0"><output id="oExposure">0</output></div>
+    <div class="slider-row"><label>Kontrasti</label><input type="range" id="sContrast" min="-50" max="50" value="0"><output id="oContrast">0</output></div>
+    <div class="slider-row"><label>Keskisävyt</label><input type="range" id="sGamma" min="-50" max="50" value="0"><output id="oGamma">0</output></div>
+    <div class="slider-row"><label>Lämpötila</label><input type="range" id="sTemp" min="-50" max="50" value="0"><output id="oTemp">0</output></div>
+    <div class="slider-row"><label>Sävy</label><input type="range" id="sTint" min="-50" max="50" value="0"><output id="oTint">0</output></div>
+    <div class="slider-row"><label>Kylläisyys</label><input type="range" id="sSat" min="0" max="200" value="100"><output id="oSat">100</output></div>
+  </div>
+</main>
+
+<div id="loupe"><canvas id="loupeCanvas" width="118" height="118"></canvas></div>
+<div id="toast"></div>
+<input type="file" id="fileInput" accept="image/*" hidden>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- state ---------- */
+const PREVIEW_MAX = 1100;
+let fullCanvas = null;          // alkuperäinen negatiivi, täysi resoluutio
+let prevCanvas = null;          // alkuperäinen negatiivi, esikatselukoko
+let prevNegData = null;         // ImageData esikatselusta (negatiivi)
+let invData = null;             // käännetty + venytetty esikatselu (Uint8ClampedArray)
+let base = null;                // [r,g,b] filmipohjan väri
+let levels = null;              // {lo:[3], hi:[3]}
+let picking = false;
+let showingOriginal = false;
+let renderQueued = false;
+
+const state = { exposure:0, contrast:0, gamma:0, temp:0, tint:0, sat:100 };
+const DEFAULTS = {...state};
+
+/* ---------- elements ---------- */
+const $ = id => document.getElementById(id);
+const stage = $("stage"), canvas = $("canvas"), ctx = canvas.getContext("2d");
+const empty = $("empty"), hint = $("hint"), hintText = $("hintText");
+const toolbar = $("toolbar"), adjust = $("adjust");
+const loupe = $("loupe"), loupeCanvas = $("loupeCanvas"), loupeCtx = loupeCanvas.getContext("2d");
+const fileInput = $("fileInput"), toast = $("toast");
+loupeCtx.imageSmoothingEnabled = false;
+
+/* ---------- helpers ---------- */
+let toastTimer;
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove("show"), 2600);
+}
+function setHint(msg){
+  if(msg){ hintText.textContent = msg; hint.style.display = "flex"; }
+  else hint.style.display = "none";
+}
+
+/* ---------- image loading ---------- */
+$("pickFileBtn").addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", e=>{
+  const f = e.target.files && e.target.files[0];
+  if(f) loadFile(f);
+  fileInput.value = "";
+});
+document.addEventListener("dragover", e=>e.preventDefault());
+document.addEventListener("drop", e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f && f.type.startsWith("image/")) loadFile(f);
+});
+
+function loadFile(file){
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    URL.revokeObjectURL(url);
+    setupImage(img);
+  };
+  img.onerror = ()=>{
+    URL.revokeObjectURL(url);
+    showToast("Kuvan avaaminen epäonnistui.");
+  };
+  img.src = url;
+}
+
+function setupImage(img){
+  fullCanvas = document.createElement("canvas");
+  fullCanvas.width = img.naturalWidth;
+  fullCanvas.height = img.naturalHeight;
+  fullCanvas.getContext("2d").drawImage(img, 0, 0);
+  buildPreviewFromFull();
+
+  base = null; invData = null; levels = null;
+  resetSliders(false);
+
+  empty.style.display = "none";
+  canvas.style.display = "block";
+  toolbar.style.display = "flex";
+  adjust.style.display = "none";
+  drawNegative();
+  startPicking(true);
+}
+
+function buildPreviewFromFull(){
+  const scale = Math.min(1, PREVIEW_MAX / Math.max(fullCanvas.width, fullCanvas.height));
+  prevCanvas = document.createElement("canvas");
+  prevCanvas.width = Math.max(1, Math.round(fullCanvas.width * scale));
+  prevCanvas.height = Math.max(1, Math.round(fullCanvas.height * scale));
+  prevCanvas.getContext("2d").drawImage(fullCanvas, 0, 0, prevCanvas.width, prevCanvas.height);
+  prevNegData = prevCanvas.getContext("2d").getImageData(0, 0, prevCanvas.width, prevCanvas.height);
+  canvas.width = prevCanvas.width;
+  canvas.height = prevCanvas.height;
+}
+
+function drawNegative(){
+  ctx.putImageData(prevNegData, 0, 0);
+}
+
+/* ---------- pipette ---------- */
+const toolPipette = $("toolPipette");
+toolPipette.addEventListener("click", ()=>startPicking(!picking));
+
+function startPicking(on){
+  picking = on;
+  stage.classList.toggle("picking", on);
+  toolPipette.classList.toggle("active", on);
+  if(on){
+    setHint("Paina pipetillä filmin tyhjää oranssia reunaa — kuvien välissä tai reunassa olevaa kohtaa, jossa ei ole kuvaa.");
+    if(invData) drawNegative();       // näytä negatiivi valintaa varten
+  }else{
+    setHint(null);
+    loupe.style.display = "none";
+    if(invData) requestRender();
+  }
+}
+
+function canvasPos(e){
+  const r = canvas.getBoundingClientRect();
+  const x = Math.round((e.clientX - r.left) * canvas.width / r.width);
+  const y = Math.round((e.clientY - r.top) * canvas.height / r.height);
+  return [
+    Math.max(0, Math.min(canvas.width - 1, x)),
+    Math.max(0, Math.min(canvas.height - 1, y))
+  ];
+}
+
+let pointerActive = false;
+canvas.addEventListener("pointerdown", e=>{
+  if(!picking) return;
+  pointerActive = true;
+  canvas.setPointerCapture(e.pointerId);
+  updateLoupe(e);
+});
+canvas.addEventListener("pointermove", e=>{
+  if(!picking || !pointerActive) return;
+  updateLoupe(e);
+});
+canvas.addEventListener("pointerup", e=>{
+  if(!picking || !pointerActive) return;
+  pointerActive = false;
+  loupe.style.display = "none";
+  const [x, y] = canvasPos(e);
+  pickBase(x, y);
+});
+canvas.addEventListener("pointercancel", ()=>{
+  pointerActive = false;
+  loupe.style.display = "none";
+});
+
+function updateLoupe(e){
+  const [x, y] = canvasPos(e);
+  loupe.style.display = "block";
+  loupe.style.left = (e.clientX - 59) + "px";
+  loupe.style.top = (e.clientY - 150) + "px";
+  loupeCtx.clearRect(0, 0, 118, 118);
+  loupeCtx.drawImage(prevCanvas, x - 7, y - 7, 15, 15, 0, 0, 118, 118);
+}
+
+function pickBase(cx, cy){
+  // 9x9 keskiarvo
+  const d = prevNegData.data, w = prevNegData.width, h = prevNegData.height;
+  let r = 0, g = 0, b = 0, n = 0;
+  for(let y = cy - 4; y <= cy + 4; y++){
+    if(y < 0 || y >= h) continue;
+    for(let x = cx - 4; x <= cx + 4; x++){
+      if(x < 0 || x >= w) continue;
+      const i = (y * w + x) * 4;
+      r += d[i]; g += d[i+1]; b += d[i+2]; n++;
+    }
+  }
+  base = [Math.max(1, r/n), Math.max(1, g/n), Math.max(1, b/n)];
+  convert();
+  startPicking(false);
+  adjust.style.display = "block";
+  showToast("Valmis! Hienosäädä liukusäätimillä tai tallenna.");
+}
+
+/* ---------- conversion: invert + auto-levels ---------- */
+function invertAndHistogram(srcData, baseCol){
+  const d = srcData.data, n = d.length;
+  const out = new Uint8ClampedArray(n);
+  const hist = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
+  for(let i = 0; i < n; i += 4){
+    for(let c = 0; c < 3; c++){
+      let v = 1 - Math.min(d[i+c] / baseCol[c], 1);
+      const iv = (v * 255) | 0;
+      out[i+c] = iv;
+      hist[c][iv]++;
+    }
+    out[i+3] = 255;
+  }
+  return {out, hist, count: n / 4};
+}
+
+function percentiles(hist, count){
+  const lo = [0,0,0], hi = [255,255,255];
+  const loTarget = count * 0.005, hiTarget = count * 0.995;
+  for(let c = 0; c < 3; c++){
+    let acc = 0;
+    for(let v = 0; v < 256; v++){
+      acc += hist[c][v];
+      if(acc >= loTarget){ lo[c] = v; break; }
+    }
+    acc = 0;
+    for(let v = 0; v < 256; v++){
+      acc += hist[c][v];
+      if(acc >= hiTarget){ hi[c] = v; break; }
+    }
+    if(hi[c] - lo[c] < 8){ lo[c] = Math.max(0, hi[c] - 8); } // varmuus
+  }
+  return {lo, hi};
+}
+
+function stretchInPlace(arr, lo, hi){
+  const scale = [255/(hi[0]-lo[0]), 255/(hi[1]-lo[1]), 255/(hi[2]-lo[2])];
+  for(let i = 0; i < arr.length; i += 4){
+    for(let c = 0; c < 3; c++){
+      arr[i+c] = (arr[i+c] - lo[c]) * scale[c];
+    }
+  }
+}
+
+function convert(){
+  const {out, hist, count} = invertAndHistogram(prevNegData, base);
+  levels = percentiles(hist, count);
+  stretchInPlace(out, levels.lo, levels.hi);
+  invData = out;
+  requestRender();
+}
+
+/* ---------- adjustments render ---------- */
+function buildLUT(){
+  const lut = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
+  const exp = Math.pow(2, state.exposure / 100);           // -1.5 .. +1.5 EV
+  const gammaExp = Math.pow(2, -state.gamma / 60);         // keskisävyt
+  const k = state.contrast * 2.2;
+  const cf = (259 * (k + 255)) / (255 * (259 - k));        // klassinen kontrastikerroin
+  const shift = [
+    state.temp / 320 + state.tint / 640,                   // R
+    -state.tint / 320,                                     // G
+    -state.temp / 320 + state.tint / 640                   // B
+  ];
+  for(let c = 0; c < 3; c++){
+    for(let v = 0; v < 256; v++){
+      let x = v / 255;
+      x *= exp;
+      x = Math.pow(Math.max(x, 0), gammaExp);
+      x = cf * (x - 0.5) + 0.5;
+      x += shift[c];
+      lut[c][v] = Math.max(0, Math.min(1, x)) * 255;
+    }
+  }
+  return lut;
+}
+
+function applyAdjust(src, dst){
+  const lut = buildLUT();
+  const sat = state.sat / 100;
+  const n = src.length;
+  if(sat === 1){
+    for(let i = 0; i < n; i += 4){
+      dst[i]   = lut[0][src[i]];
+      dst[i+1] = lut[1][src[i+1]];
+      dst[i+2] = lut[2][src[i+2]];
+      dst[i+3] = 255;
+    }
+  }else{
+    for(let i = 0; i < n; i += 4){
+      const r = lut[0][src[i]], g = lut[1][src[i+1]], b = lut[2][src[i+2]];
+      const l = 0.299*r + 0.587*g + 0.114*b;
+      dst[i]   = l + (r - l) * sat;
+      dst[i+1] = l + (g - l) * sat;
+      dst[i+2] = l + (b - l) * sat;
+      dst[i+3] = 255;
+    }
+  }
+}
+
+function requestRender(){
+  if(renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(()=>{
+    renderQueued = false;
+    if(!invData || showingOriginal || picking) return;
+    const img = new ImageData(prevNegData.width, prevNegData.height);
+    applyAdjust(invData, img.data);
+    ctx.putImageData(img, 0, 0);
+  });
+}
+
+/* ---------- sliders ---------- */
+const sliderIds = ["Exposure","Contrast","Gamma","Temp","Tint","Sat"];
+const stateKeys = ["exposure","contrast","gamma","temp","tint","sat"];
+sliderIds.forEach((name, i)=>{
+  const input = $("s"+name), out = $("o"+name);
+  input.addEventListener("input", ()=>{
+    state[stateKeys[i]] = +input.value;
+    out.textContent = input.value;
+    requestRender();
+  });
+});
+$("resetBtn").addEventListener("click", ()=>resetSliders(true));
+function resetSliders(render){
+  Object.assign(state, DEFAULTS);
+  sliderIds.forEach((name, i)=>{
+    $("s"+name).value = DEFAULTS[stateKeys[i]];
+    $("o"+name).textContent = DEFAULTS[stateKeys[i]];
+  });
+  if(render) requestRender();
+}
+
+/* ---------- original hold ---------- */
+const toolOriginal = $("toolOriginal");
+function origDown(e){
+  if(!invData) return;
+  e.preventDefault();
+  showingOriginal = true;
+  toolOriginal.classList.add("active");
+  drawNegative();
+}
+function origUp(){
+  if(!showingOriginal) return;
+  showingOriginal = false;
+  toolOriginal.classList.remove("active");
+  requestRender();
+}
+toolOriginal.addEventListener("pointerdown", origDown);
+window.addEventListener("pointerup", origUp);
+window.addEventListener("pointercancel", origUp);
+
+/* ---------- rotate ---------- */
+$("toolRotate").addEventListener("click", ()=>{
+  if(!fullCanvas) return;
+  const rc = document.createElement("canvas");
+  rc.width = fullCanvas.height;
+  rc.height = fullCanvas.width;
+  const rctx = rc.getContext("2d");
+  rctx.translate(rc.width / 2, rc.height / 2);
+  rctx.rotate(Math.PI / 2);
+  rctx.drawImage(fullCanvas, -fullCanvas.width / 2, -fullCanvas.height / 2);
+  fullCanvas = rc;
+  buildPreviewFromFull();
+  if(base) convert(); else drawNegative();
+});
+
+/* ---------- save ---------- */
+$("toolSave").addEventListener("click", ()=>{
+  if(!fullCanvas) return;
+  if(!invData){ showToast("Valitse ensin pipetillä filmin reuna."); return; }
+  showToast("Käsitellään täyttä resoluutiota…");
+  setTimeout(()=>{
+    try{
+      const fctx = fullCanvas.getContext("2d");
+      const fdata = fctx.getImageData(0, 0, fullCanvas.width, fullCanvas.height);
+      const {out} = invertAndHistogram(fdata, base);
+      stretchInPlace(out, levels.lo, levels.hi);
+      const result = new ImageData(fullCanvas.width, fullCanvas.height);
+      applyAdjust(out, result.data);
+      const oc = document.createElement("canvas");
+      oc.width = fullCanvas.width; oc.height = fullCanvas.height;
+      oc.getContext("2d").putImageData(result, 0, 0);
+      const a = document.createElement("a");
+      a.download = "negatohtori-" + Date.now() + ".jpg";
+      a.href = oc.toDataURL("image/jpeg", 0.94);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast("Kuva tallennettu!");
+    }catch(err){
+      showToast("Tallennus epäonnistui: " + err.message);
+    }
+  }, 60);
+});
+
+})();
+</script>
+</body>
+</html>
