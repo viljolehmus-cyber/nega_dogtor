@@ -23,8 +23,8 @@
     --line:#2e2e34;
     --text:#ececea;
     --text-dim:#9b9b98;
-    --accent:#c6913c;       /* logon kulta-oranssi */
-    --accent-soft:rgba(198,145,60,.16);
+    --accent:#ff8a00;       /* logon oranssi */
+    --accent-soft:rgba(255,138,0,.16);
     --font-display:"Fraunces",Georgia,"Times New Roman",serif;
     --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --radius:16px;
@@ -70,9 +70,7 @@
   }
   #empty .drop-icon{
     width:64px;height:64px;border-radius:18px;background:var(--accent-soft);
-    display:flex;align-items:center;justify-content:center;
-    font-family:var(--font-display);font-weight:800;font-size:2.4rem;
-    color:var(--accent);line-height:1;
+    display:flex;align-items:center;justify-content:center;font-size:1.8rem;
   }
   #empty p{color:var(--text-dim);font-size:.9rem;max-width:260px;line-height:1.45}
   .btn{
@@ -175,7 +173,7 @@
 <main>
   <div id="stage">
     <div id="empty">
-      <div class="drop-icon">N</div>
+      <div class="drop-icon">🎞️</div>
       <p>Ota kuva negatiivista valoa vasten tai valitse valmis kuva galleriasta.</p>
       <button class="btn" id="pickFileBtn">Valitse kuva</button>
     </div>
