@@ -2,8 +2,19 @@
 <html lang="fi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Negatohtori — negatiivit valokuviksi</title>
+<meta name="theme-color" content="#111113">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Negatohtori">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,600..900,100,0&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#111113;
@@ -12,8 +23,10 @@
     --line:#2e2e34;
     --text:#ececea;
     --text-dim:#9b9b98;
-    --accent:#e8873a;       /* filmipohjan oranssi */
-    --accent-soft:rgba(232,135,58,.16);
+    --accent:#c6913c;       /* logon kulta-oranssi */
+    --accent-soft:rgba(198,145,60,.16);
+    --font-display:"Fraunces",Georgia,"Times New Roman",serif;
+    --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --radius:16px;
     font-size:16px;
   }
@@ -21,16 +34,19 @@
   html,body{height:100%}
   body{
     background:var(--bg);color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-family:var(--font-sans);
     display:flex;flex-direction:column;min-height:100dvh;
   }
 
   /* ---------- Header ---------- */
   header{
-    padding:14px 20px 10px;
+    padding:calc(14px + env(safe-area-inset-top)) 20px 10px;
     display:flex;align-items:baseline;gap:10px;
   }
-  header h1{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+  header h1{
+    font-family:var(--font-display);font-size:1.45rem;font-weight:800;
+    letter-spacing:.01em;color:var(--accent);
+  }
   header span{font-size:.8rem;color:var(--text-dim)}
   .sprockets{
     height:8px;margin:0 20px 6px;border-radius:4px;
@@ -39,7 +55,7 @@
   }
 
   /* ---------- Stage ---------- */
-  main{flex:1;display:flex;flex-direction:column;padding:0 14px 14px;gap:12px;max-width:760px;width:100%;margin:0 auto}
+  main{flex:1;display:flex;flex-direction:column;padding:0 14px calc(14px + env(safe-area-inset-bottom));gap:12px;max-width:760px;width:100%;margin:0 auto}
   #stage{
     position:relative;flex:1;min-height:42dvh;
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -54,7 +70,9 @@
   }
   #empty .drop-icon{
     width:64px;height:64px;border-radius:18px;background:var(--accent-soft);
-    display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-weight:800;font-size:2.4rem;
+    color:var(--accent);line-height:1;
   }
   #empty p{color:var(--text-dim);font-size:.9rem;max-width:260px;line-height:1.45}
   .btn{
@@ -112,10 +130,10 @@
     display:none;background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:16px 16px 10px;
   }
-  #adjust h2{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  #adjust h2{font-family:var(--font-display);font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
   #adjust h2 button{
     appearance:none;border:none;background:none;color:var(--accent);
-    font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;letter-spacing:0;text-transform:none;
+    font:inherit;font-family:var(--font-sans);font-size:.78rem;font-weight:600;cursor:pointer;letter-spacing:0;text-transform:none;
   }
   .slider-row{display:grid;grid-template-columns:96px 1fr 44px;align-items:center;gap:10px;padding:7px 0}
   .slider-row label{font-size:.85rem;color:var(--text)}
@@ -157,7 +175,7 @@
 <main>
   <div id="stage">
     <div id="empty">
-      <div class="drop-icon">🎞️</div>
+      <div class="drop-icon">N</div>
       <p>Ota kuva negatiivista valoa vasten tai valitse valmis kuva galleriasta.</p>
       <button class="btn" id="pickFileBtn">Valitse kuva</button>
     </div>
