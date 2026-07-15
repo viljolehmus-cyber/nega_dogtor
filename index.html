@@ -84,6 +84,17 @@
   .btn.secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
   .btn:disabled{opacity:.35;pointer-events:none}
 
+  /* Close button */
+  #closeBtn{
+    position:absolute;top:10px;right:10px;z-index:10;
+    width:38px;height:38px;border-radius:50%;padding:0;
+    display:none;align-items:center;justify-content:center;
+    appearance:none;border:1px solid var(--line);cursor:pointer;
+    background:rgba(20,20,22,.8);backdrop-filter:blur(8px);color:var(--text);
+  }
+  #closeBtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  #closeBtn:active{background:var(--panel-2)}
+
   /* Hint banner */
   #hint{
     position:absolute;left:12px;right:12px;bottom:12px;
@@ -179,6 +190,9 @@
     </div>
     <canvas id="canvas"></canvas>
     <div id="hint"><div class="dot"></div><span id="hintText"></span></div>
+    <button id="closeBtn" aria-label="Sulje kuva">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
   </div>
 
   <div id="toolbar">
@@ -297,6 +311,7 @@ function setupImage(img){
 
   empty.style.display = "none";
   canvas.style.display = "block";
+  $("closeBtn").style.display = "flex";
   toolbar.style.display = "flex";
   adjust.style.display = "none";
   drawNegative();
@@ -530,6 +545,20 @@ function resetSliders(render){
   });
   if(render) requestRender();
 }
+
+/* ---------- close image ---------- */
+$("closeBtn").addEventListener("click", ()=>{
+  startPicking(false);
+  fullCanvas = null; origCanvas = null; prevCanvas = null; prevNegData = null;
+  invData = null; base = null; levels = null;
+  savedBlob = null; savedKey = "";
+  resetSliders(false);
+  canvas.style.display = "none";
+  $("closeBtn").style.display = "none";
+  toolbar.style.display = "none";
+  adjust.style.display = "none";
+  empty.style.display = "flex";
+});
 
 /* ---------- reset to start ---------- */
 $("toolReset").addEventListener("click", ()=>{
