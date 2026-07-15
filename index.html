@@ -61,8 +61,8 @@
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     display:flex;align-items:center;justify-content:center;overflow:hidden;
   }
-  #canvas{max-width:100%;max-height:100%;display:none;touch-action:none}
-  #stage.picking #canvas{cursor:crosshair}
+  #canvas{max-width:100%;max-height:100%;display:none;touch-action:pan-y}
+  #stage.picking #canvas{cursor:crosshair;touch-action:none}
 
   /* Empty state */
   #empty{
@@ -186,9 +186,9 @@
       <svg viewBox="0 0 24 24"><path d="M13.6 5.5l4.9 4.9M15 4l5 5M12 7l5 5-7.5 7.5c-.8.8-2 .9-2.8.2l-.4-.4c-.7-.8-.6-2 .2-2.8L12 7z"/><path d="M5.5 18.5L4 20"/></svg>
       Pipetti
     </div>
-    <div class="tool" id="toolOriginal">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/></svg>
-      Alkuperäinen
+    <div class="tool" id="toolReset">
+      <svg viewBox="0 0 24 24"><path d="M7 5v14"/><path d="M19 5l-9 7 9 7z"/></svg>
+      Alusta
     </div>
     <div class="tool" id="toolRotate">
       <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 5v6h-6"/></svg>
@@ -222,13 +222,13 @@
 /* ---------- state ---------- */
 const PREVIEW_MAX = 1100;
 let fullCanvas = null;          // alkuperäinen negatiivi, täysi resoluutio
+let origCanvas = null;          // ladattu kuva sellaisenaan, ilman kiertoja
 let prevCanvas = null;          // alkuperäinen negatiivi, esikatselukoko
 let prevNegData = null;         // ImageData esikatselusta (negatiivi)
 let invData = null;             // käännetty + venytetty esikatselu (Uint8ClampedArray)
 let base = null;                // [r,g,b] filmipohjan väri
 let levels = null;              // {lo:[3], hi:[3]}
 let picking = false;
-let showingOriginal = false;
 let renderQueued = false;
 
 const state = { exposure:0, contrast:0, gamma:0, temp:0, tint:0, sat:100 };
@@ -289,6 +289,7 @@ function setupImage(img){
   fullCanvas.width = img.naturalWidth;
   fullCanvas.height = img.naturalHeight;
   fullCanvas.getContext("2d").drawImage(img, 0, 0);
+  origCanvas = fullCanvas;
   buildPreviewFromFull();
 
   base = null; invData = null; levels = null;
@@ -502,7 +503,7 @@ function requestRender(){
   renderQueued = true;
   requestAnimationFrame(()=>{
     renderQueued = false;
-    if(!invData || showingOriginal || picking) return;
+    if(!invData || picking) return;
     const img = new ImageData(prevNegData.width, prevNegData.height);
     applyAdjust(invData, img.data);
     ctx.putImageData(img, 0, 0);
@@ -530,24 +531,19 @@ function resetSliders(render){
   if(render) requestRender();
 }
 
-/* ---------- original hold ---------- */
-const toolOriginal = $("toolOriginal");
-function origDown(e){
-  if(!invData) return;
-  e.preventDefault();
-  showingOriginal = true;
-  toolOriginal.classList.add("active");
+/* ---------- reset to start ---------- */
+$("toolReset").addEventListener("click", ()=>{
+  if(!origCanvas) return;
+  fullCanvas = origCanvas;
+  savedBlob = null; savedKey = "";
+  base = null; invData = null; levels = null;
+  buildPreviewFromFull();
+  resetSliders(false);
+  adjust.style.display = "none";
   drawNegative();
-}
-function origUp(){
-  if(!showingOriginal) return;
-  showingOriginal = false;
-  toolOriginal.classList.remove("active");
-  requestRender();
-}
-toolOriginal.addEventListener("pointerdown", origDown);
-window.addEventListener("pointerup", origUp);
-window.addEventListener("pointercancel", origUp);
+  startPicking(true);
+  showToast("Aloitettu alusta.");
+});
 
 /* ---------- rotate ---------- */
 $("toolRotate").addEventListener("click", ()=>{
@@ -560,14 +556,46 @@ $("toolRotate").addEventListener("click", ()=>{
   rctx.rotate(Math.PI / 2);
   rctx.drawImage(fullCanvas, -fullCanvas.width / 2, -fullCanvas.height / 2);
   fullCanvas = rc;
+  savedBlob = null; savedKey = "";
   buildPreviewFromFull();
   if(base) convert(); else drawNegative();
 });
 
 /* ---------- save ---------- */
+let savedBlob = null, savedKey = "";
+function saveKey(){
+  return JSON.stringify([state, base, fullCanvas.width, fullCanvas.height]);
+}
+function downloadBlob(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.download = "negatohtori-" + Date.now() + ".jpg";
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  showToast("Kuva tallennettu latauksiin.");
+}
+async function shareOrDownload(blob){
+  const file = new File([blob], "negatohtori-" + Date.now() + ".jpg", {type:"image/jpeg"});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file]});
+      showToast("Valmis!");
+    }catch(err){
+      if(err.name === "AbortError") return;
+      if(err.name === "NotAllowedError"){ showToast("Paina Tallenna vielä kerran."); return; }
+      downloadBlob(blob);
+    }
+  }else{
+    downloadBlob(blob);
+  }
+}
 $("toolSave").addEventListener("click", ()=>{
   if(!fullCanvas) return;
   if(!invData){ showToast("Valitse ensin pipetillä filmin reuna."); return; }
+  if(savedBlob && savedKey === saveKey()){ shareOrDownload(savedBlob); return; }
   showToast("Käsitellään täyttä resoluutiota…");
   setTimeout(()=>{
     try{
@@ -580,13 +608,11 @@ $("toolSave").addEventListener("click", ()=>{
       const oc = document.createElement("canvas");
       oc.width = fullCanvas.width; oc.height = fullCanvas.height;
       oc.getContext("2d").putImageData(result, 0, 0);
-      const a = document.createElement("a");
-      a.download = "negatohtori-" + Date.now() + ".jpg";
-      a.href = oc.toDataURL("image/jpeg", 0.94);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      showToast("Kuva tallennettu!");
+      oc.toBlob(blob=>{
+        if(!blob){ showToast("Tallennus epäonnistui."); return; }
+        savedBlob = blob; savedKey = saveKey();
+        shareOrDownload(blob);
+      }, "image/jpeg", 0.94);
     }catch(err){
       showToast("Tallennus epäonnistui: " + err.message);
     }
